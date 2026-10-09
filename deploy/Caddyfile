@@ -1,0 +1,9 @@
+# APP_DOMAIN       e.g. press.example.ge
+# SUPABASE_DOMAIN  e.g. api.press.example.ge
+{$APP_DOMAIN} {
+	reverse_proxy app:3000
+}
+
+{$SUPABASE_DOMAIN} {
+	reverse_proxy kong:8000
+}

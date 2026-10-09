@@ -1,0 +1,43 @@
+# App + reverse proxy. Supabase runs from its own official compose stack
+# (see README); both join the "supabase_default" network so the app can
+# reach Kong internally.
+services:
+  app:
+    build:
+      context: ..
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    env_file: .env
+    environment:
+      SUPABASE_INTERNAL_URL: http://kong:8000
+    restart: unless-stopped
+    networks: [default, supabase]
+
+  # Retries notifications that failed to send.
+  cron:
+    image: curlimages/curl:8.10.1
+    restart: unless-stopped
+    env_file: .env
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'while true; do curl -fsS -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/notifications >/dev/null || true; sleep 60; done'
+    depends_on: [app]
+
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    env_file: .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    networks: [default, supabase]
+
+volumes:
+  caddy_data:
+
+networks:
+  supabase:
+    name: supabase_default
+    external: true
